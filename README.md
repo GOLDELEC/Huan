@@ -1,4 +1,4 @@
-Alexa Voice Service (AVS) client for ESP32. This is a work in progress.
+**Alexa Voice Service (AVS) client for ESP32**. This is a work in progress.
 
 ESP32 from Espressif is a tiny SoC integrated Bluetooth 4.2 and WiFi. Bluetooth can be used for communicating with mobile phone, and WiFi can be used for connecting to Internet. Why not make this device do something like ‘Alexa, let my ESP32 do some interesting things for me’?
 
@@ -8,11 +8,12 @@ How to compile the code? Just compile it as a normal ESP32 project like this:
 http://goldelec.com/install-esp32-development-tools-and-build-helloworld-project/
 
 The http/2 tech used in this project is based on mbedtls and nghttp2. 
-**mtbedtls**
+
+**mtbedtls**  
 https://tls.mbed.org/
 
-**nghttp2**
+**nghttp2**  
 https://nghttp2.org/
 
-**About AVS**
+**About AVS**  
 The Alexa Voice Service  (AVS) is the cloud-based service，and it allows you to integrate Alexa’s built-in voice capabilities into connected products. With AVS, users will have the ability to play music, request the weather forecast and local news, get updates on traffic conditions, ask general knowledge questions, set timers and alarms, query Wikipedia and much more, the same way they would with an Amazon Echo. Developers also have access to third-party skills developed using the Alexa Skills Kit (ASK). Using AVS and ASK together, developers can build sophisticated interactions to extend the capabilities of your Alexa-enabled product.
