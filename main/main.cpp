@@ -46,30 +46,11 @@
 
 #include "wm8978.h"
 #include "driver/i2c.h"
+#include "DriverUtil.h"
 
 #include "driver/i2s.h"
 #include <math.h>
-
-
-#define GE_DEBUG_ON 1
-
-#define I2C_MASTER_SCL_IO    19    /*!< gpio number for I2C master clock */
-#define I2C_MASTER_SDA_IO    18    /*!< gpio number for I2C master data  */
-#define I2C_MASTER_NUM I2C_NUM_1   /*!< I2C port number for master dev */
-#define I2C_MASTER_TX_BUF_DISABLE   0   /*!< I2C master do not need buffer */
-#define I2C_MASTER_RX_BUF_DISABLE   0   /*!< I2C master do not need buffer */
-#define I2C_MASTER_FREQ_HZ    100000     /*!< I2C master clock frequency */
-
-#define SAMPLE_RATE     (44100)
-#define I2S_NUM         (0)
-#define WAVE_FREQ_HZ    (100)
-#define PI 3.14159265
-
-#define SAMPLE_PER_CYCLE (SAMPLE_RATE/WAVE_FREQ_HZ)
-
-#define WIFI_SSID "GOLDELEC"
-#define WIFI_PASS "gold2015++"
-
+#include "Http2Client.h"
 
 /* FreeRTOS event group to signal when we are connected & ready to make a request */
 static EventGroupHandle_t wifi_event_group;
@@ -88,6 +69,7 @@ static const char *TAG = "Huan";
 
 extern const uint8_t server_root_cert_pem_start[] asm("_binary_server_root_cert_pem_start");
 extern const uint8_t server_root_cert_pem_end[]   asm("_binary_server_root_cert_pem_end");
+
 
 #ifdef MBEDTLS_DEBUG_C
 
@@ -134,6 +116,67 @@ static void mbedtls_debug(void *ctx, int level,
 #endif
 
 
+
+#define MBEDTLS_DEBUG_LEVEL 4
+
+
+#define GE_DEBUG_ON 1
+
+#define I2C_MASTER_SCL_IO    19    /*!< gpio number for I2C master clock */
+#define I2C_MASTER_SDA_IO    18    /*!< gpio number for I2C master data  */
+#define I2C_MASTER_NUM I2C_NUM_1   /*!< I2C port number for master dev */
+#define I2C_MASTER_TX_BUF_DISABLE   0   /*!< I2C master do not need buffer */
+#define I2C_MASTER_RX_BUF_DISABLE   0   /*!< I2C master do not need buffer */
+#define I2C_MASTER_FREQ_HZ    100000     /*!< I2C master clock frequency */
+
+#define SAMPLE_RATE     (44100)
+#define I2S_NUM         (0)
+#define WAVE_FREQ_HZ    (100)
+#define PI 3.14159265
+
+#define SAMPLE_PER_CYCLE (SAMPLE_RATE/WAVE_FREQ_HZ)
+
+#define WIFI_SSID "GOLDELEC"
+#define WIFI_PASS "gold2015++"
+
+#define GE_DEBUG_ON 1
+
+#define I2C_MASTER_SCL_IO    19    /*!< gpio number for I2C master clock */
+#define I2C_MASTER_SDA_IO    18    /*!< gpio number for I2C master data  */
+#define I2C_MASTER_NUM I2C_NUM_1   /*!< I2C port number for master dev */
+#define I2C_MASTER_TX_BUF_DISABLE   0   /*!< I2C master do not need buffer */
+#define I2C_MASTER_RX_BUF_DISABLE   0   /*!< I2C master do not need buffer */
+#define I2C_MASTER_FREQ_HZ    100000     /*!< I2C master clock frequency */
+
+#define SAMPLE_RATE     (44100)
+#define I2S_NUM         (0)
+#define WAVE_FREQ_HZ    (100)
+#define PI 3.14159265
+
+#define SAMPLE_PER_CYCLE (SAMPLE_RATE/WAVE_FREQ_HZ)
+
+#define WIFI_SSID "GOLDELEC"
+#define WIFI_PASS "gold2015++"
+
+
+/**
+ * @brief i2c master initialization
+ */
+void i2c_master_init()
+{
+    int i2c_master_port = I2C_MASTER_NUM;
+    i2c_config_t conf;
+    conf.mode = I2C_MODE_MASTER;
+    conf.sda_io_num = (gpio_num_t)I2C_MASTER_SDA_IO;
+    conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
+    conf.scl_io_num = (gpio_num_t)I2C_MASTER_SCL_IO;
+    conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
+    conf.master.clk_speed = I2C_MASTER_FREQ_HZ;
+    i2c_param_config((i2c_port_t)i2c_master_port, &conf);
+    i2c_driver_install((i2c_port_t)i2c_master_port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
+}
+
+
 static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
     switch(event->event_id) {
@@ -164,12 +207,12 @@ static void initialise_wifi(void)
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
     ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
-    wifi_config_t wifi_config = {
-        .sta = {
-            .ssid = WIFI_SSID,
-            .password = WIFI_PASS,
-        },
-    };
+
+    wifi_config_t wifi_config;
+
+    memcpy(wifi_config.sta.ssid, WIFI_SSID, strlen(WIFI_SSID) + 1);
+    memcpy(wifi_config.sta.password, WIFI_PASS, strlen(WIFI_PASS) + 1);
+
     ESP_LOGI(TAG, "Setting WiFi configuration SSID %s...", wifi_config.sta.ssid);
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
     ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
@@ -177,6 +220,7 @@ static void initialise_wifi(void)
 }
 
 enum { IO_NONE, WANT_READ, WANT_WRITE };
+
 
 #define MAKE_NV(NAME, VALUE)                                                   \
   {                                                                            \
@@ -214,40 +258,39 @@ struct Request {
   uint16_t port;
 };
 
+
 /*
  * The implementation of nghttp2_send_callback type. Here we write
  * |data| with size |length| to the network and return the number of
  * bytes actually written. See the documentation of
  * nghttp2_send_callback for the details.
  */
-static ssize_t send_callback(nghttp2_session *session, const uint8_t *data,
-                             size_t length, int flags, void *user_data) {
+static ssize_t send_callback(nghttp2_session *session, const uint8_t *data, size_t length, int flags, void *user_data) {
 	ESP_LOGI(TAG, "nghttp2 event step6...");
 
-  struct Connection *connection;
-  int rv;
-  connection = (struct Connection *)user_data;
-  connection->want_io = IO_NONE;
+	struct Connection *connection;
+	int rv;
+	connection = (struct Connection *) user_data;
+	connection->want_io = IO_NONE;
 
-  ESP_LOGI(TAG, "nghttp2 event step7...");
+	ESP_LOGI(TAG, "nghttp2 event step7...");
 
-  //ERR_clear_error();
-  rv = mbedtls_ssl_write(connection->ssl, data, (int)length);
+	//ERR_clear_error();
+	rv = mbedtls_ssl_write(connection->ssl, data, (int) length);
 
-  ESP_LOGI(TAG, "nghttp2 event step8...");
+	ESP_LOGI(TAG, "nghttp2 event step8...");
 
-  if (rv <= 0) {
-	  ESP_LOGI(TAG, "nghttp2 event step9...");
+	if (rv <= 0) {
+		ESP_LOGI(TAG, "nghttp2 event step9...");
 
-      if(rv != MBEDTLS_ERR_SSL_WANT_READ && rv != MBEDTLS_ERR_SSL_WANT_WRITE)
-      {
-    	  ESP_LOGI(TAG, "nghttp2 event step10...");
+		if (rv != MBEDTLS_ERR_SSL_WANT_READ && rv != MBEDTLS_ERR_SSL_WANT_WRITE) {
+			ESP_LOGI(TAG, "nghttp2 event step10...");
 
-          ESP_LOGE(TAG, "mbedtls_ssl_write returned -0x%d", -rv);
-          abort();
-      }
-  }
-  return rv;
+			ESP_LOGE(TAG, "mbedtls_ssl_write returned -0x%d", -rv);
+			abort();
+		}
+	}
+	return rv;
 }
 
 /*
@@ -256,103 +299,99 @@ static ssize_t send_callback(nghttp2_session *session, const uint8_t *data,
  * |length| bytes. Returns the number of bytes stored in |buf|. See
  * the documentation of nghttp2_recv_callback for the details.
  */
-static ssize_t recv_callback(nghttp2_session *session, uint8_t *buf,
-                             size_t length, int flags, void *user_data) {
-  struct Connection *connection;
-  int rv;
-  connection = (struct Connection *)user_data;
-  connection->want_io = IO_NONE;
-  //ERR_clear_error();
+static ssize_t recv_callback(nghttp2_session *session, uint8_t *buf, size_t length, int flags, void *user_data) {
+	struct Connection *connection;
+	int rv;
+	connection = (struct Connection *) user_data;
+	connection->want_io = IO_NONE;
+	//ERR_clear_error();
 
-  //#define MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY                 -0x7880  /**< The peer notified us that the connection is going to be closed. */
+	//#define MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY                 -0x7880  /**< The peer notified us that the connection is going to be closed. */
 
-  //rv = mbedtls_ssl_get_bytes_avail(connection->ssl);
+	rv = mbedtls_ssl_get_bytes_avail(connection->ssl);
 
- // if(rv > 0){
-	  rv = mbedtls_ssl_read(connection->ssl, buf, (int)length);
-  //}
+	if (rv > 0) {
+		rv = mbedtls_ssl_read(connection->ssl, buf, (int) length);
+	}
 
+	ESP_LOGI(TAG, "got data, data length:%d data:", length);
 
-  ESP_LOGI(TAG, "got data, data length:%d data:", length);
+	// fwrite(buf, 1, length, stdout);
 
- // fwrite(buf, 1, length, stdout);
-
-  if (rv < 0) {
-      ESP_LOGE(TAG, "mbedtls_ssl_read returned -0x%x", -rv);
-  } else if (rv == 0) {
-	ESP_LOGI(TAG, "connection closed");
-    rv = NGHTTP2_ERR_EOF;
-  }
-  else{
-	ESP_LOGI(TAG, "mbedtls_ssl_read successed, return:%d", rv);
-  }
-  return rv;
+	if (rv < 0) {
+		ESP_LOGE(TAG, "mbedtls_ssl_read returned -0x%x", -rv);
+	} else if (rv == 0) {
+		ESP_LOGI(TAG, "connection closed");
+		rv = NGHTTP2_ERR_EOF;
+	} else {
+		ESP_LOGI(TAG, "mbedtls_ssl_read successed, return:%d", rv);
+	}
+	return rv;
 }
 
 
-static int on_frame_send_callback(nghttp2_session *session,
-                                  const nghttp2_frame *frame,
-                                  void *user_data) {
+static int on_frame_send_callback(nghttp2_session *session, const nghttp2_frame *frame, void *user_data) {
 	ESP_LOGI(TAG, "nghttp2 event step4...");
 
-  size_t i;
-  switch (frame->hd.type) {
-  case NGHTTP2_HEADERS:
-    if (nghttp2_session_get_stream_user_data(session, frame->hd.stream_id)) {
-      const nghttp2_nv *nva = frame->headers.nva;
-      printf("[INFO] C ----------------------------> S (HEADERS)\n");
-      for (i = 0; i < frame->headers.nvlen; ++i) {
-        fwrite(nva[i].name, 1, nva[i].namelen, stdout);
-        printf(": ");
-        fwrite(nva[i].value, 1, nva[i].valuelen, stdout);
-        printf("\n");
-      }
-    }
-    break;
-  case NGHTTP2_RST_STREAM:
-    printf("[INFO] C ----------------------------> S (RST_STREAM)\n");
-    break;
-  case NGHTTP2_GOAWAY:
-    printf("[INFO] C ----------------------------> S (GOAWAY)\n");
-    break;
-  }
-  return 0;
+	size_t i;
+	switch (frame->hd.type) {
+	case NGHTTP2_HEADERS:
+		if (nghttp2_session_get_stream_user_data(session,
+				frame->hd.stream_id)) {
+			const nghttp2_nv *nva = frame->headers.nva;
+			printf("[INFO] C ----------------------------> S (HEADERS)\n");
+			for (i = 0; i < frame->headers.nvlen; ++i) {
+				fwrite(nva[i].name, 1, nva[i].namelen, stdout);
+				printf(": ");
+				fwrite(nva[i].value, 1, nva[i].valuelen, stdout);
+				printf("\n");
+			}
+		}
+		break;
+	case NGHTTP2_RST_STREAM:
+		printf("[INFO] C ----------------------------> S (RST_STREAM)\n");
+		break;
+	case NGHTTP2_GOAWAY:
+		printf("[INFO] C ----------------------------> S (GOAWAY)\n");
+		break;
+	}
+	return 0;
 }
 
-static int on_frame_recv_callback(nghttp2_session *session,
-                                  const nghttp2_frame *frame,
-                                  void *user_data) {
 
-	  ESP_LOGI(TAG, "on_frame_recv_callback step%d", 1);
+static int on_frame_recv_callback(nghttp2_session *session, const nghttp2_frame *frame, void *user_data) {
+	ESP_LOGI(TAG, "on_frame_recv_callback step%d", 1);
 
-  size_t i;
-  switch (frame->hd.type) {
-  case NGHTTP2_HEADERS:
-    if (frame->headers.cat == NGHTTP2_HCAT_RESPONSE) {
-      const nghttp2_nv *nva = frame->headers.nva;
-      struct Request *req;
-      req = (struct Request *)nghttp2_session_get_stream_user_data(session, frame->hd.stream_id);
-      if (req) {
-        printf("[INFO] C <---------------------------- S (HEADERS)\n");
-        for (i = 0; i < frame->headers.nvlen; ++i) {
-          fwrite(nva[i].name, 1, nva[i].namelen, stdout);
-          printf(": ");
-          fwrite(nva[i].value, 1, nva[i].valuelen, stdout);
-          printf("\n");
-        }
-      }
-    }
-    break;
-  case NGHTTP2_RST_STREAM:
-    printf("[INFO] C <---------------------------- S (RST_STREAM)\n");
-    break;
-  case NGHTTP2_GOAWAY:
-    printf("[INFO] C <---------------------------- S (GOAWAY)\n");
-    break;
-  default:
-	  ESP_LOGI(TAG, "get frame type:%d", frame->hd.type);
-  }
-  return 0;
+	size_t i;
+	switch (frame->hd.type) {
+	case NGHTTP2_HEADERS:
+		if (frame->headers.cat == NGHTTP2_HCAT_RESPONSE) {
+			const nghttp2_nv *nva = frame->headers.nva;
+			struct Request *req;
+			req = (struct Request *) nghttp2_session_get_stream_user_data(
+					session, frame->hd.stream_id);
+			if (req) {
+				printf("[INFO] C <---------------------------- S (HEADERS)\n");
+				for (i = 0; i < frame->headers.nvlen; ++i) {
+					fwrite(nva[i].name, 1, nva[i].namelen, stdout);
+					printf(": ");
+					fwrite(nva[i].value, 1, nva[i].valuelen, stdout);
+					printf("\n");
+				}
+			}
+		}
+		break;
+	case NGHTTP2_RST_STREAM:
+		printf("[INFO] C <---------------------------- S (RST_STREAM)\n");
+		break;
+	case NGHTTP2_GOAWAY:
+		printf("[INFO] C <---------------------------- S (GOAWAY)\n");
+		break;
+	default:
+		ESP_LOGI(TAG, "get frame type:%d", frame->hd.type)
+		;
+	}
+	return 0;
 }
 
 /*
@@ -366,17 +405,17 @@ static int on_stream_close_callback(nghttp2_session *session, int32_t stream_id,
                                     void *user_data) {
 	ESP_LOGI(TAG, "on_stream_close_callback");
 
-  struct Request *req;
-  req = nghttp2_session_get_stream_user_data(session, stream_id);
-  if (req) {
-    int rv;
-    rv = nghttp2_session_terminate_session(session, NGHTTP2_NO_ERROR);
+	Request *req;
+	req = (Request *)nghttp2_session_get_stream_user_data(session, stream_id);
+	if (req) {
+		int rv;
+		rv = nghttp2_session_terminate_session(session, NGHTTP2_NO_ERROR);
 
-    if (rv != 0) {
-    	ESP_LOGE(TAG, "nghttp2_session_terminate_session:%d", rv);
-    }
-  }
-  return 0;
+		if (rv != 0) {
+			ESP_LOGE(TAG, "nghttp2_session_terminate_session:%d", rv);
+		}
+	}
+	return 0;
 }
 
 /*
@@ -387,20 +426,47 @@ static int on_data_chunk_recv_callback(nghttp2_session *session,
                                        uint8_t flags, int32_t stream_id,
                                        const uint8_t *data, size_t len,
                                        void *user_data) {
-
 	ESP_LOGI(TAG, "on_data_chunk_recv_callback");
-  struct Request *req;
-  req = nghttp2_session_get_stream_user_data(session, stream_id);
-  if (req) {
-    printf("[INFO] C <---------------------------- S (DATA chunk)\n"
+	Request *req;
+	req = (Request *)nghttp2_session_get_stream_user_data(session, stream_id);
+	if (req) {
+		printf("[INFO] C <---------------------------- S (DATA chunk)\n"
            "%lu bytes\n",
            (unsigned long int)len);
-    fwrite(data, 1, len, stdout);
-    printf("\n");
-  }
-  return 0;
+		fwrite(data, 1, len, stdout);
+		printf("\n");
+	}
+	return 0;
 }
 
+/*
+ * Submits the request |req| to the connection |connection|.  This
+ * function does not send packets; just append the request to the
+ * internal queue in |connection->session|.
+ */
+static void submit_request(struct Connection *connection, struct Request *req) {
+  int32_t stream_id;
+  /* Make sure that the last item is NULL */
+  const nghttp2_nv nva[6] = {MAKE_NV(":method", "GET"),
+                            MAKE_NV_CS(":path", req->path),
+                            MAKE_NV(":scheme", "https"),
+                            MAKE_NV_CS(":authority", req->host),
+                            MAKE_NV("accept", "*/*"),
+                            MAKE_NV("user-agent", "nghttp2/" NGHTTP2_VERSION)};
+
+  stream_id = nghttp2_submit_request(connection->session, NULL, nva,
+                                     sizeof(nva) / sizeof(nva[0]), NULL, req);
+
+  if (stream_id < 0) {
+	  ESP_LOGE(TAG, "nghttp2_submit_request:%d", stream_id);
+	  abort();
+  }
+
+  req->stream_id = stream_id;
+  printf("[INFO] Stream ID = %d\n", stream_id);
+}
+
+Connection connection;
 
 /*
  * Setup callback functions. nghttp2 API offers many callback
@@ -428,31 +494,39 @@ static void setup_nghttp2_callbacks(nghttp2_session_callbacks *callbacks) {
       callbacks, on_data_chunk_recv_callback);
 }
 
-/*
- * Submits the request |req| to the connection |connection|.  This
- * function does not send packets; just append the request to the
- * internal queue in |connection->session|.
- */
-static void submit_request(struct Connection *connection, struct Request *req) {
-  int32_t stream_id;
-  /* Make sure that the last item is NULL */
-  const nghttp2_nv nva[] = {MAKE_NV(":method", "GET"),
-                            MAKE_NV_CS(":path", req->path),
-                            MAKE_NV(":scheme", "https"),
-                            MAKE_NV_CS(":authority", req->host),
-                            MAKE_NV("accept", "*/*"),
-                            MAKE_NV("user-agent", "nghttp2/" NGHTTP2_VERSION)};
 
-  stream_id = nghttp2_submit_request(connection->session, NULL, nva,
-                                     sizeof(nva) / sizeof(nva[0]), NULL, req);
+static void initNghttp2(){
+	Request req = {
+			"avs-alexa-na.amazon.com",
+			"/",
+			"avs-alexa-na.amazon.com:443",
+			-1,
+			443
+	};
 
-  if (stream_id < 0) {
-	  ESP_LOGE(TAG, "nghttp2_submit_request:%d", stream_id);
-	  abort();
-  }
+	nghttp2_session_callbacks *callbacks;
 
-  req->stream_id = stream_id;
-  printf("[INFO] Stream ID = %d\n", stream_id);
+	int rv = nghttp2_session_callbacks_new(&callbacks);
+
+	if (rv != 0) {
+		ESP_LOGE(TAG, "nghttp2_session_callbacks_new failed: %d", rv);
+		abort();
+	}
+
+	setup_nghttp2_callbacks(callbacks);
+
+//	rv = nghttp2_session_client_new(&connection.session, callbacks, &connection);
+//
+//	nghttp2_session_callbacks_del(callbacks);
+//
+//	rv = nghttp2_submit_settings(connection.session, NGHTTP2_FLAG_NONE, NULL, 0);
+//
+//	if (rv != 0) {
+//		ESP_LOGE(TAG, "nghttp2_submit_settings failed:%d", rv);		    abort();
+//	}
+//
+//	/* Submit the HTTP request to the outbound queue. */
+//	submit_request(&connection, &req);
 }
 
 
@@ -523,97 +597,6 @@ static void handleIo(struct Connection *connection) {
 }
 
 
-struct Connection connection;
-
-static void initNghttp2(){
-	struct Request req = {
-			"avs-alexa-na.amazon.com",
-			"/",
-			"avs-alexa-na.amazon.com:443",
-			-1,
-			"443"
-	};
-
-	nghttp2_session_callbacks *callbacks;
-
-	int rv = nghttp2_session_callbacks_new(&callbacks);
-
-	if (rv != 0) {
-		ESP_LOGE(TAG, "nghttp2_session_callbacks_new failed: %d", rv);
-		abort();
-	}
-
-	setup_nghttp2_callbacks(callbacks);
-
-	rv = nghttp2_session_client_new(&connection.session, callbacks, &connection);
-
-	nghttp2_session_callbacks_del(callbacks);
-
-	rv = nghttp2_submit_settings(connection.session, NGHTTP2_FLAG_NONE, NULL, 0);
-
-	if (rv != 0) {
-		ESP_LOGE(TAG, "nghttp2_submit_settings failed:%d", rv);		    abort();
-	}
-
-	/* Submit the HTTP request to the outbound queue. */
-	submit_request(&connection, &req);
-}
-
-static void audio_ouput_task(void *pvParameters){
-    unsigned int sample_val;
-     float sin_float, triangle_float, triangle_step = 65536.0 / SAMPLE_PER_CYCLE;
-
-     //for 36Khz sample rates, we create 100Hz sine wave, every cycle need 36000/100 = 360 samples (4-bytes each sample)
-     //using 6 buffers, we need 60-samples per buffer
-     //2-channels, 16-bit each channel, total buffer is 360*4 = 1440 bytes
-     i2s_config_t i2s_config = {
-         .mode = I2S_MODE_MASTER | I2S_MODE_TX,                                  // Only TX
-         .sample_rate = SAMPLE_RATE,
-         .bits_per_sample = 16,                                                  //16-bit per channel
-         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,                           //2-channels
-         .communication_format = I2S_COMM_FORMAT_I2S,
-         .dma_buf_count = 6,
-         .dma_buf_len = 60,                                                      //
-         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1                                //Interrupt level 1
-     };
-     i2s_pin_config_t pin_config = {
-         .bck_io_num = 26,
-         .ws_io_num = 25,
-         .data_out_num = 22,
-         .data_in_num = -1                                                       //Not used
-     };
-
-     i2s_driver_install(I2S_NUM, &i2s_config, 0, NULL);
-     i2s_set_pin(I2S_NUM, &pin_config);
-
-     i2s_set_sample_rates(I2S_NUM, 22050);
-
-     triangle_float = -32767;
-
-     while (1) {
-
-    	 for (int i = 0; i < SAMPLE_PER_CYCLE; i++) {
-		sin_float = sin(i * PI / 180.0);
-		if (sin_float >= 0)
-			triangle_float += triangle_step;
-		else
-			triangle_float -= triangle_step;
-		sin_float *= 32767;
-
-		sample_val = 0;
-		sample_val += (short) triangle_float;
-		sample_val = sample_val << 16;
-		sample_val += (short) sin_float;
-
-		int ret = i2s_push_sample(I2S_NUM, (char *) &sample_val, portMAX_DELAY);
-
-		//ESP_LOGI(TAG, "i2s_push_sample return:%d", ret);
-    }
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
-	}
-}
-
-
 static void http2_client_task(void *pvParameters)
 {
     char buf[512];
@@ -634,6 +617,8 @@ static void http2_client_task(void *pvParameters)
     mbedtls_ssl_config_init(&conf);
 
     mbedtls_entropy_init(&entropy);
+
+
     if((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
                                     NULL, 0)) != 0)
     {
@@ -682,8 +667,8 @@ static void http2_client_task(void *pvParameters)
     mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
     mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 #ifdef MBEDTLS_DEBUG_C
-    mbedtls_debug_set_threshold(MBEDTLS_DEBUG_LEVEL);
-    mbedtls_ssl_conf_dbg(&conf, mbedtls_debug, NULL);
+   // mbedtls_debug_set_threshold(MBEDTLS_DEBUG_LEVEL);
+   // mbedtls_ssl_conf_dbg(&conf, mbedtls_debug, NULL);
 #endif
 
     if ((ret = mbedtls_ssl_setup(&ssl, &conf)) != 0)
@@ -775,35 +760,76 @@ static void http2_client_task(void *pvParameters)
             ESP_LOGI(TAG, "%d...", countdown);
             vTaskDelay(1000 / portTICK_PERIOD_MS);
         }
-        ESP_LOGI(TAG, "Starting again!");
-    }
+       ESP_LOGI(TAG, "Starting again!");
+   }
 }
 
 
-/**
- * @brief i2c master initialization
- */
-void i2c_master_init()
-{
-    int i2c_master_port = I2C_MASTER_NUM;
-    i2c_config_t conf;
-    conf.mode = I2C_MODE_MASTER;
-    conf.sda_io_num = I2C_MASTER_SDA_IO;
-    conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
-    conf.scl_io_num = I2C_MASTER_SCL_IO;
-    conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
-    conf.master.clk_speed = I2C_MASTER_FREQ_HZ;
-    i2c_param_config(i2c_master_port, &conf);
-    i2c_driver_install(i2c_master_port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
+static void audio_ouput_task(void *pvParameters) {
+	unsigned int sample_val;
+	float sin_float, triangle_float, triangle_step = 65536.0 / SAMPLE_PER_CYCLE;
+
+	//for 36Khz sample rates, we create 100Hz sine wave, every cycle need 36000/100 = 360 samples (4-bytes each sample)
+	//using 6 buffers, we need 60-samples per buffer
+	//2-channels, 16-bit each channel, total buffer is 360*4 = 1440 bytes
+	int mode = I2S_MODE_MASTER | I2S_MODE_TX;
+
+	i2s_config_t i2s_config = {
+				.mode = (i2s_mode_t) mode,            // Only TX
+				.sample_rate = SAMPLE_RATE,
+				.bits_per_sample = (i2s_bits_per_sample_t) 16,          //16-bit per channel
+				.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,           //2-channels
+				.communication_format = I2S_COMM_FORMAT_I2S,
+				.intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,               //Interrupt level 1
+				.dma_buf_count = 6,
+				.dma_buf_len = 60                            //
+			};
+
+	i2s_pin_config_t pin_config = {
+			.bck_io_num = 26,
+			.ws_io_num = 25,
+			.data_out_num = 22,
+			.data_in_num = -1                    //Not used
+			};
+
+	i2s_driver_install((i2s_port_t) I2S_NUM, &i2s_config, 0, NULL);
+	i2s_set_pin((i2s_port_t) I2S_NUM, &pin_config);
+
+	i2s_set_sample_rates((i2s_port_t) I2S_NUM, 22050);
+
+	triangle_float = -32767;
+
+	while (1) {
+		for (int i = 0; i < SAMPLE_PER_CYCLE; i++) {
+			sin_float = sin(i * PI / 180.0);
+			if (sin_float >= 0)
+				triangle_float += triangle_step;
+			else
+				triangle_float -= triangle_step;
+			sin_float *= 32767;
+
+			sample_val = 0;
+			sample_val += (short) triangle_float;
+			sample_val = sample_val << 16;
+			sample_val += (short) sin_float;
+
+			int ret = i2s_push_sample((i2s_port_t) I2S_NUM, (char *) &sample_val, portMAX_DELAY);
+
+			//ESP_LOGI(TAG, "i2s_push_sample return:%d", ret);
+		}
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
+	}
 }
 
 
-void app_main() {
+extern "C" void app_main() {
 	nvs_flash_init();
 	initialise_wifi();
 	i2c_master_init();
 	WM8978_Init();
 
+	Http2Client *htt2pClient = new Http2Client();
+
 	xTaskCreate(&audio_ouput_task, "audio_ouput_task", 8192, NULL, 5, NULL);
-	//xTaskCreate(&http2_client_task, "http2_client_task", 8192, NULL, 5, NULL);
+	xTaskCreate(&http2_client_task, "http2_client_task", 8192, NULL, 5, NULL);
 }

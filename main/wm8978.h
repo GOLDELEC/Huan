@@ -7,7 +7,12 @@
 
 uint8_t WM8978_Write_Reg(uint8_t reg,uint16_t val);
 uint16_t WM8978_Read_Reg(uint8_t reg);
+
+#ifdef __cplusplus
+extern "C"
+#endif
 uint8_t WM8978_Init(void);
+
 void WM8978_ADDA_Cfg(uint8_t dacen,uint8_t adcen);
 void WM8978_Output_Cfg(uint8_t dacen,uint8_t bpsen);
 void WM8978_HPvol_Set(uint8_t voll,uint8_t volr);
