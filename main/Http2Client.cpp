@@ -103,6 +103,8 @@ static const char *TAG = "Http2Client";
 Http2Client::Http2Client(){
     port = 443;
 
+    timeout = 10000;
+
     mbedtls_ssl_init(&ssl);
     mbedtls_x509_crt_init(&cacert);
     mbedtls_ctr_drbg_init(&ctr_drbg);
@@ -191,37 +193,49 @@ bool Http2Client::begin(std::string host, std::string path, int port) {
 		return false;
 	}
 
-	while(1){
-		performIo(&connection);
-	}
+	performIo(&connection);
 
 	return true;
 }
 
 
 void Http2Client::performIo(struct Connection *connection) {
-	int result;
+	TickType_t startTime;
+	startTime = xTaskGetTickCount();
 
-	if (nghttp2_session_want_write(connection->session)) {
-		result = nghttp2_session_send(connection->session);
+	unsigned char buf[2048];
 
-		if (result != 0) {
-			ESP_LOGI(TAG, "***nghttp2_session_send failed:%d", result);
+	ESP_LOGI(TAG, "performIo finished");
+
+	while(1){
+		if(xTaskGetTickCount() - startTime > pdMS_TO_TICKS(timeout)){
+			return;
+		}
+
+		int result;
+
+		if (nghttp2_session_want_write(connection->session)) {
+			result = nghttp2_session_send(connection->session);
+
+			if (result != 0) {
+				ESP_LOGI(TAG, "***nghttp2_session_send failed:%d", result);
+			}
+		}
+
+		if (!nghttp2_session_want_read(connection->session)) {
+			ESP_LOGI(TAG, "nghttp2_session_want_read: not");
+			break;
+		}
+
+		int responseLen = mbedtls_ssl_read(connection->ssl, buf, 2048);
+		result = nghttp2_session_mem_recv(connection->session, (const uint8_t *)buf, responseLen);
+
+		if (result < 0) {
+			ESP_LOGI(TAG, "***nghttp2_session_mem_recv failed:%d", result);
 		}
 	}
 
-	if (!nghttp2_session_want_read(connection->session)) {
-		ESP_LOGI(TAG, "nghttp2_session_want_read: not");
-		return;
-	}
-
-	unsigned char buf[2048];
-	int responseLen = mbedtls_ssl_read(connection->ssl, buf, 2048);
-	result = nghttp2_session_mem_recv(connection->session, (const uint8_t *)buf, responseLen);
-
-	if (result < 0) {
-		ESP_LOGI(TAG, "***nghttp2_session_mem_recv failed:%d", result);
-	}
+	ESP_LOGI(TAG, "performIo finished");
 }
 
 
@@ -245,8 +259,13 @@ bool Http2Client:: connected(){
 }
 
 
-void Http2Client::setTimeOut(int milliSeconds){
+void Http2Client::setTimeout(int timeout){
+	this->timeout = timeout;
+}
 
+
+int Http2Client::getimeout(){
+	return timeout;
 }
 
 

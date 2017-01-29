@@ -230,6 +230,14 @@ static void http2_client_task(void *pvParameters) {
 
 	Http2Client *htt2pClient = new Http2Client();
 	htt2pClient->begin("avs-alexa-na.amazon.com", "/", 443);
+	htt2pClient->end();
+	delete htt2pClient;
+
+	vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+	while(1){
+
+	}
 }
 
 

@@ -62,7 +62,8 @@ public:
 
     bool connected();
 
-    void setTimeOut(int milliSeconds);
+    void setTimeout(int milliSeconds);
+    int getimeout();
 
     void sendGetRequest();
     void sendPostRequest();
@@ -71,6 +72,8 @@ private:
     string host;
     string path;
     int port;
+
+    int timeout;
 
     mbedtls_entropy_context entropy;
     mbedtls_ctr_drbg_context ctr_drbg;
