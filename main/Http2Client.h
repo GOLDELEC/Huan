@@ -86,7 +86,7 @@ private:
     bool initNghttp2();
     void setupNghttp2Callbacks(nghttp2_session_callbacks *callbacks);
     void submitRequest(struct Connection *connection, struct Request *req);
-    void handleIo(struct Connection *connection);
+    void performIo(struct Connection *connection);
 };
 
 

@@ -67,8 +67,6 @@ static void mbedtls_debug(void *ctx, int level,
 
 #endif
 
-
-
 #define MBEDTLS_DEBUG_LEVEL 4
 
 #define MAKE_NV(NAME, VALUE)                                                   \
@@ -194,77 +192,36 @@ bool Http2Client::begin(std::string host, std::string path, int port) {
 	}
 
 	while(1){
-		handleIo(&connection);
+		performIo(&connection);
 	}
 
 	return true;
 }
 
 
-/*
- * Performs the network I/O.
- */
-void Http2Client::handleIo(struct Connection *connection) {
+void Http2Client::performIo(struct Connection *connection) {
 	int result;
 
 	if (nghttp2_session_want_write(connection->session)) {
 		result = nghttp2_session_send(connection->session);
 
 		if (result != 0) {
-#if GE_DEBUG_ON
-			if (result == NGHTTP2_ERR_CALLBACK_FAILURE) {
-				ESP_LOGI(TAG,
-						"nghttp2_session_send result: NGHTTP2_ERR_CALLBACK_FAILURE");
-			} else if (result == NGHTTP2_ERR_CALLBACK_FAILURE) {
-				ESP_LOGI(TAG,
-						"nghttp2_session_send result: NGHTTP2_ERR_CALLBACK_FAILURE");
-			} else {
-				ESP_LOGI(TAG, "nghttp2_session_send result: Unknown");
-			}
-#endif
-			ESP_LOGI(TAG, "***nghttp2_session_send:%d", result);
+			ESP_LOGI(TAG, "***nghttp2_session_send failed:%d", result);
 		}
 	}
 
-	vTaskDelay(1000 / portTICK_PERIOD_MS);
-
 	if (!nghttp2_session_want_read(connection->session)) {
-		//ESP_LOGI(TAG, "nghttp2_session_want_read: not data to read");
+		ESP_LOGI(TAG, "nghttp2_session_want_read: not");
 		return;
 	}
 
-	//if (mbedtls_ssl_get_bytes_avail(connection->ssl) > 0) {
-		result = nghttp2_session_recv(connection->session);
+	unsigned char buf[2048];
+	int responseLen = mbedtls_ssl_read(connection->ssl, buf, 2048);
+	result = nghttp2_session_mem_recv(connection->session, (const uint8_t *)buf, responseLen);
 
-		if (result != 0) {
-#if GE_DEBUG_ON
-			switch (result) {
-			case NGHTTP2_ERR_EOF:
-				ESP_LOGI(TAG,
-						"nghttp2_session_recv result: NGHTTP2_ERR_EOF. The peer performed a shutdown on the connection");
-				break;
-			case NGHTTP2_ERR_NOMEM:
-				ESP_LOGI(TAG,
-						"nghttp2_session_recv result: NGHTTP2_ERR_NOMEM.");
-				break;
-			case NGHTTP2_ERR_CALLBACK_FAILURE:
-				ESP_LOGI(TAG,
-						"nghttp2_session_recv result: NGHTTP2_ERR_CALLBACK_FAILURE.");
-				break;
-			case NGHTTP2_ERR_FLOODED:
-				ESP_LOGI(TAG,
-						"nghttp2_session_recv result: NGHTTP2_ERR_FLOODED.");
-				break;
-			default:
-				ESP_LOGI(TAG, "nghttp2_session_recv result: Unknown");
-				break;
-			}
-#endif
-			ESP_LOGI(TAG, "***nghttp2_session_recv:%d", result);
-		}
-	//} else {
-		//ESP_LOGI(TAG, "mbedtls_ssl_get_bytes_avail: not data to available");
-	//}
+	if (result < 0) {
+		ESP_LOGI(TAG, "***nghttp2_session_mem_recv failed:%d", result);
+	}
 }
 
 
