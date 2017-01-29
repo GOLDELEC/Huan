@@ -269,17 +269,6 @@ int Http2Client::getimeout(){
 }
 
 
-void Http2Client::sendGetRequest(){
-
-}
-
-
-void Http2Client::sendPostRequest(){
-
-
-}
-
-
 bool Http2Client::connectToServer(void){
     mbedtls_net_init(&server_fd);
 

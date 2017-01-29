@@ -65,8 +65,6 @@ public:
     void setTimeout(int milliSeconds);
     int getimeout();
 
-    void sendGetRequest();
-    void sendPostRequest();
 
 private:
     string host;
