@@ -26,3 +26,7 @@ https://espressif.com/en/products/hardware/esp32/overview
 WM8978  
 The audio CODEC used in this project is WM8978 which integrates preamps for stereo differential mics and includes drivers for speakers, headphone and differential or stereo line output. 
 http://www.cirrus.com/en/pubs/proDatasheet/WM8978_v4.5.pdf
+
+Schematic
+The ESP32 module and WM8978 moudle now we use in the project are just from the market, you can also them. Here is the shematic about how to twist those two parts into one.
+![The schematic](https://github.com/GOLDELEC/GOLDELEC-Resources/blob/master/Huan_hardware_0.7.0.png)
