@@ -1,3 +1,5 @@
+.settings/
+
 # ESP32 special
 sdkconfig.old
 
