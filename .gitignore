@@ -1,3 +1,6 @@
+# ESP32 special
+sdkconfig.old
+
 # Object files
 *.o
 *.ko
