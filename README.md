@@ -1,3 +1,5 @@
+This project is no longer maintained.
+
 **Alexa Voice Service (AVS) client for ESP32**. This is a work in progress.
 
 ESP32 from Espressif is a tiny SoC integrated Bluetooth 4.2 and WiFi. Bluetooth can be used for communicating with mobile phone, and WiFi can be used for connecting to Internet. Why not make this device do something like ‘Alexa, let my ESP32 do some interesting things for me’?
